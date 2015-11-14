@@ -5,14 +5,14 @@ Created on Thu Nov 12 21:23:41 2015
     segment cells/cellNucleis in images 
     
     
-    return
+    return: 
             im2:        mask of binary 
             cellStatus: contours of cell 
             
 @author: jamin
 """
 
-import cv2,cv
+import cv2, cv
 import numpy as np
 
 # using opencv2 to segmente cell neucleis 
@@ -20,9 +20,11 @@ def cvCellNuclei(im):
 
     h,w,c = im.shape
     im2 = cv.CreateMat(h,w,cv2.CV_32FC1)
-#    org = cv.fromarray(im)
-    im2 = cv2.cvtColor(im,cv2.COLOR_RGB2GRAY)   # gray
-    gray = im2  
+#    img = cv.fromarray(im)
+#    org = cv.CreateMat(h,w,cv2.CV_8UC3)    
+#    cv.Copy(img,org)
+    im2 = cv2.cvtColor(im,cv2.COLOR_RGB2GRAY)   # gray   
+    gray = im2
 #    cv2.imshow('org',gray)      
 #    cv2.waitKey(0)
     ret,im2 = cv2.threshold(im2,93,255,cv2.THRESH_BINARY_INV)
@@ -47,17 +49,19 @@ def cvCellNuclei(im):
         # gray = cv2.rectangle(gray, (x,y), (x+w,y+h), (0,255,0),2)  
         # gray will destroyed automatic
        
+       
     cv2.imshow('test',gray)                         
-    cv2.waitKey(0)
-   
+    cv2.waitKey(0)    
     cv2.destroyAllWindows()
+    for i in range(1,10):
+        cv2.waitKey(1)        
         
     return im2,cellStatus
     
     
 # using CNN detected the cell nucleis
 def cnnCellNuclei(im):
- # to do    
+ # to do by sample   
     
     
     
@@ -68,3 +72,20 @@ def cnnCellNuclei(im):
     
     
     return 1
+
+
+# using CNN of my idear
+def e2eCellNuclei(im):
+# to do
+
+
+
+
+
+
+    return 1
+
+
+
+
+

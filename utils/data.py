@@ -35,3 +35,14 @@ def loadImages(dataDir,cropImSz,cropPt):
     np.save('data/images.npy',images)
     
     return images
+
+
+def sampleData(im,pt,inrad,outrad,maxNum):
+    # return im or coordinate
+    
+    
+    
+    
+    
+    
+    return 1
