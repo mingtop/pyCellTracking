@@ -4,4 +4,4 @@
 *.tif
 *.npy
 *.npz
-
+*.pyc

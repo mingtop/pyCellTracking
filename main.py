@@ -14,9 +14,12 @@ import segment.segment as seg
 curDir = os.getcwd()
 sys.path.append(curDir+'data')
 dataDir = '/media/jamin/Data/Cell/c1'
-cropImSz = [817,610]    # [crop_width,crop_height]
-cropPt   = [3268,1220]  # [crop_startX,crop_startY]
-trkIdx   = [181,136]      # [startIdx ,endIdx ] 
+#cropImSz = [817,610]    # [crop_width,crop_height]
+#cropPt   = [3268,1220]  # [crop_startX,crop_startY] 
+cropImSz = [499,352]
+cropPt   = [3506,893]
+trkIdx   = [181,135]    #video [startIdx ,endIdx ] 
+#   15/16 85/86  134/135  181/182   total: 299
 
 
 # 1. load data from certain Path
@@ -25,6 +28,8 @@ if os.path.isfile('data/images.npy'):
    images = np.load('data/images.npy')
 else:
     images = ld.loadImages(dataDir,cropImSz,cropPt)
+# save image to tif 
+#ld.npy2tif(images,'/media/jamin/Data/Cell/tracking/test',trkIdx)
 
 
 # 2. cell Detection
@@ -47,7 +52,7 @@ trkMethod = 1
 if trkMethod ==1:
     trkResult = tr.singleTracking(images,trkIdx,segStatus) 
 elif trkMethod == 2:
-    trkResutl = tr.multiTracking( images,trkIdx,segStatus)
+    trkResutl = tr.multiTracking(images,trkIdx,segStatus)
 
 
 
