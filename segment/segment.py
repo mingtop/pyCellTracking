@@ -42,12 +42,21 @@ def cvCellNuclei(im):
         if cv2.contourArea(cnt[i]) > 10:     
            cellStatus.append(cnt[i])
 #    cv2.drawContours(gray, cellStatus, -1, (0,255,255), 3)
+
+# auto augment the cell size
+    plusPixelSize = 4
     
     for i in range(len(cellStatus)):
         x,y,w,h = cv2.boundingRect(cellStatus[i])
-        cv2.rectangle(gray, (x,y), (x+w,y+h), (0,255,0),2) 
+        x = x - plusPixelSize
+        y = y - plusPixelSize
+        w = w + 2*plusPixelSize
+        h = h + 2*plusPixelSize
+        cv2.rectangle(gray, (x,y), (x+w,y+h), (0,255,0),1) 
         # gray = cv2.rectangle(gray, (x,y), (x+w,y+h), (0,255,0),2)  
         # gray will destroyed automatic
+
+        
        
        
     cv2.imshow('test',gray)                         

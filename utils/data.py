@@ -4,7 +4,7 @@ Created on Thu Nov 12 15:01:12 2015
     load images from certain path
 @author: jamin
 """
-import os,sys
+import os,sys,re
 import numpy as np
 import glob
 from PIL import Image
@@ -81,7 +81,7 @@ def getSampleData(im,coordinate):
     sampleIM= np.ndarray( [n, 3 , coordinate[0,2] , coordinate[0,3]],dtype = np.float32, order = 'C' )
     for i in range(0,n):
         x,y,w,h = coordinate[i,:]
-        sampleIM[i,:,:,:] = im[x:x+w,y:y+h,:].transpose(2,0,1)        
+        sampleIM[i,:,:,:] = im[x:x+h,y:y+w,:].transpose(2,1,0)        
     return sampleIM
     
  
@@ -98,5 +98,38 @@ def npy2tif(images,dst,trkIdx):
         im.save(fname)
         print('saved %s' %(fname) ) 
     return
+
+def infer_data_dimensions(netFn):
+    """Determine the size of the Caffe input data tensor.
+
+    There may be a cleaner way to do this through the pycaffe API (e.g. via the
+    network parameters protobuf object).
+    """
+    with open(netFn, 'r') as f:
+        contents = "".join(f.readlines())
+
+    dimNames = ['batch_size', 'channels', 'height', 'width']
+    dimensions = np.zeros((4,), dtype=np.int32)
+
+    for ii, dn in enumerate(dimNames):
+        pat = r'%s:\s*(\d+)' % dn
+        mo = re.search(pat, contents)
+        if mo is None:
+            raise RuntimeError('Unable to extract "%s" from network file "%s"' % (dn, netFn))
+        dimensions[ii] = int(mo.groups()[0])
+        
+    return dimensions    
     
+def trainSubDataGenerator(x,y,batchSize,omitSlices=[],omitLabels=[]):
+#    [s,m,n] = Y.shape
+#    yAll = np.unique(Y)
+#    yAll = [y for y in yAll if y not in omitLabels]
+#    assert(len(yAll) > 0)   
+
+    trainIdx = range(0,x.shape[0])
+    np.random.shuffle(trainIdx)
+    
+    for ii in range(0,len(trainIdx),batchSize):
+        nRet = min(batchSize,len(trainIdx) - ii)
+        yield trainIdx[ii:(ii+nRet)], (1.0*ii)/len(trainIdx)
     

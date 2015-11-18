@@ -1,0 +1,26 @@
+# NOTE: 
+
+#net: "singleCell.back.prototxt"  # old net
+net: "singleCell.prototxt"  # simple net
+# The base learning rate, momentum and the weight decay of the network.
+base_lr: 0.001
+momentum: 0.9                
+stepsize: 20
+gamma: 0.9
+#weight_decay: 0.004           # not supported yet
+
+# The learning rate policy
+lr_policy: "step"
+
+# Display every 200 iterations
+display: 2
+
+# The maximum number of iterations
+max_iter: 40000
+
+# snapshot intermediate results
+snapshot: 40000
+snapshot_prefix: "net"
+
+# solver mode: CPU or GPU
+solver_mode: GPU   # CPU or GPU

@@ -24,7 +24,7 @@ def showSampleImage(im,coor,dataType):
 #    coor = int(coor)
     for i in range(0,n):
 #        cv.Rectangle(org,(int(coor[0,i]),int(coor[1,i])),(int(coor[0,i]+coor[2,i]),int(coor[1,i]+coor[3,i])), colr,2)
-        if np.random.rand(1)<0.2 :   # only show parts
+        if np.random.rand(1)<0.1 :   # only show parts
             cv2.rectangle(im, (int(coor[i,0]),int(coor[i,1])),(int(coor[i,0]+coor[i,2]),
                                int(coor[i,1]+coor[i,3])), colr,1)
 
@@ -37,7 +37,16 @@ def showSampleImage(im,coor,dataType):
          
     return
     
+# show CNN weights
+def showCNNWeights(w):
     
+    
+    
+    
+    return 
+
+
+   
 # show cell's lineage
 def showLineage(im,trkRes):
 # Todo: same cell has same clr
