@@ -77,11 +77,13 @@ def trainCNN(x,y,solverDir,cellIdx):
     np.save(os.path.join(outDir, '%s_acc' % outDir), acc)
     
     print('[train]: ID %d done pretrain!' %(cellIdx))
-
+    
+    # change to projDir
+    if len(projDir) >0 :
+        os.chdir(projDir)
     
     
-    
-    return -1
+    return 
     
 def train_loop(solver, X, Y, solverParam, batchDim, outDir):
     assert(batchDim[2] == batchDim[3])
@@ -105,18 +107,20 @@ def train_loop(solver, X, Y, solverParam, batchDim, outDir):
     
     cnnTime = 0.0                          # time spent doing core CNN operations
     tic = time.time()
-    
+    xmean = np.mean(X)
     while currIter < solverParam.max_iter:
         currEpoch += 1
-        it = utils.trainSubDataGenerator(X, Y, batchDim[0])        
+        it = utils.trainSubDataGenerator(X, Y, batchDim[0])     
         for Idx, epochPct in it:
             Yi = Y[Idx]
             Yi = np.float32(Yi)
             for ii, jj in enumerate(Idx):                
-#                 temp = symc.imresize(X[jj,:,:,:].astype('float32') ,[28,28])
-                temp = symc.imresize(X[jj,:,:,:],[28,28])
+#                temp = symc.imresize(X[jj,:,:,:],[28,28])
+                temp = symc.imresize(X[jj,0,:,:],[28,28])
                 temp = np.float32(temp)
-                Xi[ii,:,:,:] = temp.transpose(2,0,1)
+                Xi[ii,0,:,:] = temp
+#                Xi[ii,:,:,:] = temp.transpose(2,0,1)
+                
                 if len(Idx)<batchDim[0]:
                     Yi = np.zeros((batchDim[0],), dtype=np.float32)
                     Yi[ii] = Y[jj]
@@ -125,14 +129,15 @@ def train_loop(solver, X, Y, solverParam, batchDim, outDir):
                 for i in range(len(Idx),batchDim[0]):
                     Yi[i] = Yi[i%len(Idx)]
                     Xi[i,:,:,:] = Xi[i%len(Idx),:,:,:]
+                    Xi = Xi -xmean
                 
-#            Xi = X[Idx,:,:,:]            
-#            Xi = symc.imresize(Xi.astype('float32'),[len(Idx),3,28,28])
 # label-preserving data transformation (synthetic data generation)
 #            Xi = _xform_minibatch(Xi)
-
+            
             _tmp = time.time()
             solver.net.set_input_arrays(Xi, Yi)
+                                                
+            
             # XXX: could call preprocess() here?
             rv = solver.net.forward()
             solver.net.backward()
@@ -173,7 +178,85 @@ def train_loop(solver, X, Y, solverParam, batchDim, outDir):
     return losses, acc
     
     
-def testCNN(x):
+def testCNN(x, solverDir,cellId):
+        
+    curDir = os.getcwd()
+    netDir, solverFn = os.path.split(solverDir)
+    # change to prototext Dirs    
+    if len(netDir)>0:
+        os.chdir(netDir)
+    
+    solverParam = caffe_pb2.SolverParameter()
+    text_format.Merge(open(solverFn).read(),solverParam)
+    
+    netFn = str(solverParam.net)
+    netParam = caffe_pb2.NetParameter()
+    text_format.Merge(open(netFn).read(),netParam)
+    
+    modelDir = str(cellId)+'_final.caffemodel'
+    print( modelDir )
+    net = caffe.Net(netFn,modelDir, caffe.TEST)
+    for name, blobs in net.params.iteritems():
+        print("%s:%s" %(name,blobs[0].data.shape))
+    
+    GPU = solverParam.solver_mode  # cpu 0 , gpu 1    
+    if GPU :
+        isModeCPU = 0
+        gpuId = 0
+    else:
+        isModeCPU = (solverParam.solver_mode == solverParam.SolverMode.Value('CPU'))
+        gpuId = 0
+    # different edition has different caffe API
+    try:
+        if not isModeCPU:
+            caffe.set_mode_gpu()
+            caffe.set_device(gpuId)
+        else:
+            caffe.set_mode_cpu()
+            caffe.set_phase_train()
+    except AttributeError:
+        if not isModeCPU:
+            net.set_mode_gpu()
+            net.set_device(gpuId)        
+        else:
+            net.set_mode_cpu()
+            net.set_phase_train()
+    
+    print("[test:] GPU mode: %s" % GPU )
+    
+    batchDim = utils.infer_data_dimensions(netFn)
+    print("[test:] batch shape:%s" %(batchDim))    
     
     
-    return -1
+    Xi = np.zeros((batchDim[0],1,28,28),dtype=np.float32)
+    Yi = np.zeros((batchDim[0],),dtype=np.float32)
+    
+    maxValue = -1
+    
+    for idx in utils.testDataGenerator(x,batchDim[0]):         
+        # resize 
+        for ii in range( 0, min(batchDim[0]-1, np.max(idx)+1) ):
+            temp = symc.imresize(Xi[ii,0,:,:],[28,28])
+            Xi[ii,0,:,:] = np.float32(temp)
+        
+        if np.max(idx)<(batchDim[0]-1):
+            Xi[idx::,:,:,:] = x[idx::,:,:,:]   # work ? or not
+
+        net.set_input_arrays(Xi,Yi)
+        out = net.forward()        
+        Yi = out['prob']
+        Yi = np.squeeze(Yi)
+        ymax = np.max(Yi[:,0])  # 0 ???????????????? is positive???
+        yidx = np.argmax(Yi[:,0])
+        if ymax>maxValue:
+            ymax = maxValue
+            yidx = yidx
+        # yidx in appended data
+        if yidx > batchDim[0]-1:
+            yidx = batchDim[0]-1
+    
+    if len(curDir)>0:
+        os.chdir(curDir)
+    
+    
+    return yidx,

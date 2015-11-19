@@ -7,7 +7,6 @@ Created on Sat Nov 14 14:27:08 2015
 @author: jamin
 """
 import numpy as np
-import os
 import utils.data as util
 import utils.show as show
 import cv2
@@ -17,7 +16,7 @@ import cnn
 def singleTracking(images,trkIdx,segResult,solverDir):    
     startIdx = trkIdx[0]
     endIdx   = trkIdx[1]
-    inrad    = 5
+    inrad    = 4
     outrad   = 0  
     trkThreshold = 0.75
         
@@ -29,22 +28,22 @@ def singleTracking(images,trkIdx,segResult,solverDir):
 # tracking every cell 
     for cellId in range(len(segResult)):
         
-        px,py,pw,ph = cv2.boundingRect(segResult[cellId])
+        px,py,pw,ph = segResult[cellId,:]
         pt = [px,py,pw,ph]
         im = images[:,:,:,startIdx]
         # enssemable data and labels
         posCoor = util.sampleData(im,pt,inrad,outrad,100) 
         posData = util.getSampleData(im,posCoor)
         show.showSampleImage(im,posCoor,'pos')
-        negCoor = util.sampleData(im,pt,20, 4+inrad,100)        
+        negCoor = util.sampleData(im,pt,20, 10+inrad,100)        
         negData = util.getSampleData(im,negCoor)
         show.showSampleImage(im,negCoor,'neg')
         x = np.vstack((posData,negData))
         y = np.zeros(int(posCoor.shape[0]+negCoor.shape[0]))
         y[0:int(posCoor.shape[0])] = 1
-        for i in range(0,20):
-            ps = posData[i,:,:,:]
-            ng = negData[i,:,:,:]
+#        for i in range(0,20):
+#            ps = posData[i,:,:,:]
+#            ng = negData[i,:,:,:]
 #            cv2.imshow('test',posData[i,:,:,:].transpose(1,2,0))
 #            cv2.waitKey(0)
                 
@@ -57,20 +56,30 @@ def singleTracking(images,trkIdx,segResult,solverDir):
         # from 2 to end frame trakcing
         for idx in seqIdx:
             im = images[:,:,:,idx];
-#           preData = util.sampleData(im,pt,0,7,200)
-#           prePt,preVal = cnn.testCNN(preData)
+            # sample predition position
+            prdCoor = util.sampleData(im,pt,7,0,200)
+            prdData = util.getSampleData(im,prdCoor)
+            show.showSampleImage(im,prdCoor,'prd')
+            
+            # do predication 
+            preIdx,preVal = cnn.testCNN(prdData,solverDir,cellId)
+            prePos = prdCoor[preIdx,:]
+            # update 
 #           while max(preVal) < trkThreshold:
 #                # rember old-pt
 #                # sample neg pos
 #                # train 
 #                # prePt,preVal = cnn.test(preData)
-#           print('Doing tracking')
-#           # rember prePt, preVal
-#            
-#           # show every frame
-                        
+
+           # show every frame
+            show.showSampleImage(im,prePos,preVal)
+           # rember prePt, preVal
+            #
+            
+        print('CellID: %d tracking done!' % (cellId))
         
-        return 1  # tracking results ....
+
+    return -1  # tracking results ....
     
 
 # mutli cell tracking

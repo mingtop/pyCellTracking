@@ -9,6 +9,7 @@ import numpy as np
 import utils.data as ld
 import trackor.trackBack as tr
 import segment.segment as seg
+import utils.show as show
 
 # params config
 curDir = os.getcwd()
@@ -29,8 +30,8 @@ if os.path.isfile('data/images.npy'):
    images = np.load('data/images.npy')
 else:
     images = ld.loadImages(dataDir,cropImSz,cropPt)
-# save image to tif 
-#ld.npy2tif(images,'/media/jamin/Data/Cell/tracking/test',trkIdx)
+    # save image to tif 
+    ld.npy2tif(images,'/media/jamin/Data/Cell/tracking/test',trkIdx)
 
 
 # 2. cell Detection
@@ -55,16 +56,19 @@ if trkMethod ==1:
 elif trkMethod == 2:
     trkResutl = tr.multiTracking(images,trkIdx,segStatus)
 
+
 # 4. show lineage   
 print('step4: show lineage')
-
-
-
-
-
+show.showLineage(trkResult)
 
 
 # 5. evaluation by Different rule or beachmark
+
+
+
+
+
+
 
 
 

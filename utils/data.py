@@ -7,6 +7,7 @@ Created on Thu Nov 12 15:01:12 2015
 import os,sys,re
 import numpy as np
 import glob
+import cv2
 from PIL import Image
 
 
@@ -35,6 +36,8 @@ def loadImages(dataDir,cropImSz,cropPt):
     np.save('data/images.npy',images)
     
     return images
+
+
 
 # return im or coordinate
 def sampleData(im,pt,inrad,outrad,maxNum):
@@ -74,16 +77,48 @@ def sampleData(im,pt,inrad,outrad,maxNum):
     return coordinate
 
 
+
+
 # from coordinate to imageSample data    
 def getSampleData(im,coordinate):
     n = coordinate.shape[0]
-    #   num * channel * w* h
-    sampleIM= np.ndarray( [n, 3 , coordinate[0,2] , coordinate[0,3]],dtype = np.float32, order = 'C' )
+    #   num * channel * w* h   
+    #  !!!  data different frome image's dim    IM:h*w   CV2:w*H
+    c = int(1)
+    sampleIM= np.ndarray( [n, c , coordinate[0,3] , coordinate[0,2]],dtype = np.float32, order = 'C' )
+#    sampleIM= np.ndarray( [n, 3 , coordinate[0,3] , coordinate[0,2]],dtype = np.float32 )
     for i in range(0,n):
-        x,y,w,h = coordinate[i,:]
-        sampleIM[i,:,:,:] = im[x:x+h,y:y+w,:].transpose(2,1,0)        
+        x,y,w,h =coordinate[i,:]
+        x = int(x)
+        y = int(y)
+        w = int(w)
+        h = int(h)
+        DEBUG = 0
+        if DEBUG:
+            ps = np.ascontiguousarray(im)
+            cv2.rectangle(ps,(x,y),(x+w,y+h),(255,255,255),1)
+            cv2.imshow('ps',ps)
+            cv2.waitKey(0)
+        ps = im[y:y+w,x:x+h,1]
+        ps = np.ascontiguousarray(ps)    
+        if c == 3:
+            sampleIM[i,c,:,:] = ps.transpose(2,1,0)              
+        else:
+            sampleIM[i,0,:,:] = ps.transpose(1,0)              
+        if DEBUG:
+            vmax = np.max(ps)
+            vmin = np.min(ps)
+            print('x:%d ,y:%d,w:%d,h:%d max:%f min:%f' %(x,y,w,h,vmax,vmin))       
+            cv2.imshow('ps',ps)
+            cv2.waitKey(0)
+            cv2.destroyWindow('ps')
+            for nn in range(0,10):            
+                cv2.waitKey(1)
+
     return sampleIM
     
+
+
  
 # save npy to tifs   
 def npy2tif(images,dst,trkIdx):
@@ -98,6 +133,9 @@ def npy2tif(images,dst,trkIdx):
         im.save(fname)
         print('saved %s' %(fname) ) 
     return
+
+
+
 
 def infer_data_dimensions(netFn):
     """Determine the size of the Caffe input data tensor.
@@ -119,12 +157,10 @@ def infer_data_dimensions(netFn):
         dimensions[ii] = int(mo.groups()[0])
         
     return dimensions    
+
+
     
-def trainSubDataGenerator(x,y,batchSize,omitSlices=[],omitLabels=[]):
-#    [s,m,n] = Y.shape
-#    yAll = np.unique(Y)
-#    yAll = [y for y in yAll if y not in omitLabels]
-#    assert(len(yAll) > 0)   
+def trainSubDataGenerator(x,y,batchSize):
 
     trainIdx = range(0,x.shape[0])
     np.random.shuffle(trainIdx)
@@ -132,4 +168,12 @@ def trainSubDataGenerator(x,y,batchSize,omitSlices=[],omitLabels=[]):
     for ii in range(0,len(trainIdx),batchSize):
         nRet = min(batchSize,len(trainIdx) - ii)
         yield trainIdx[ii:(ii+nRet)], (1.0*ii)/len(trainIdx)
+
+def testDataGenerator(x,batchSize):
+    
+    for ii in range(0,x.shape[0],batchSize):
+        nRet = min(batchSize,x.shape[0]-ii)        
+        yield range(ii,(ii+nRet))
+    
+    
     
