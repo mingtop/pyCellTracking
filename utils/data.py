@@ -100,7 +100,9 @@ def getSampleData(im,coordinate):
             cv2.imshow('ps',ps)
             cv2.waitKey(0)
         ps = im[y:y+w,x:x+h,1]
-        ps = np.ascontiguousarray(ps)    
+        ps = np.ascontiguousarray(ps) 
+        fname = '/media/jamin/Data/Cell/classification/0/%d.jpg' %(i)
+        cv2.imwrite(fname,ps)        
         if c == 3:
             sampleIM[i,c,:,:] = ps.transpose(2,1,0)              
         else:

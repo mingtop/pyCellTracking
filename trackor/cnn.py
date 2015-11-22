@@ -60,7 +60,7 @@ def trainCNN(x,y,solverDir,cellIdx):
             caffe.set_device(gpuId)
         else:
             caffe.set_mode_cpu()
-            caffe.set_phase_train()
+#            caffe.set_phase_train()        # Needn't set phase as Train
     except AttributeError:
         if not isModeCPU:
             caffe.set_mode_gpu()
@@ -73,8 +73,8 @@ def trainCNN(x,y,solverDir,cellIdx):
     losses, acc = train_loop(solver, x, y,  solverParam, batchDim, outDir)
     
     solver.net.save('%d_final.caffemodel'%(cellIdx))
-    np.save(os.path.join(outDir, '%s_losses' % outDir), losses)
-    np.save(os.path.join(outDir, '%s_acc' % outDir), acc)
+#    np.save(os.path.join(outDir, '%s_losses' % outDir), losses)
+#    np.save(os.path.join(outDir, '%s_acc' % outDir), acc)
     
     print('[train]: ID %d done pretrain!' %(cellIdx))
     
@@ -88,8 +88,13 @@ def trainCNN(x,y,solverDir,cellIdx):
 def train_loop(solver, X, Y, solverParam, batchDim, outDir):
     assert(batchDim[2] == batchDim[3])
     
+    xmean = np.mean(X)        
+    X = X -xmean
     Xi = np.zeros(batchDim, dtype=np.float32)
-    Yi = np.zeros((batchDim[0],), dtype=np.float32)
+    # Softmax Loss
+#    Yi = np.zeros((batchDim[0],), dtype=np.float32)
+    # Cross-entroy Loss
+    Yi = np.zeros((batchDim[0],2,1,1),dtype=np.float32)
     losses = np.zeros((solverParam.max_iter,)) 
     acc = np.zeros((solverParam.max_iter,))
     currIter = 0
@@ -106,30 +111,34 @@ def train_loop(solver, X, Y, solverParam, batchDim, outDir):
         raise RuntimeError('Sorry - only support SGD "step" mode at the present')
     
     cnnTime = 0.0                          # time spent doing core CNN operations
-    tic = time.time()
-    xmean = np.mean(X)
+    tic = time.time()   
     while currIter < solverParam.max_iter:
         currEpoch += 1
         it = utils.trainSubDataGenerator(X, Y, batchDim[0])     
         for Idx, epochPct in it:
-            Yi = Y[Idx]
-            Yi = np.float32(Yi)
+            Yi = Y[Idx]                   # softmax loss
+            Yi = np.float32(Yi)           # softmax loss
+#            Yi[0:len(Idx),0,0,0] = Yi[0:len(Idx),0,0,0] & (Y[Idx]==1) # cross loss
+#            Yi[0:len(Idx),1,0,0] = Yi[0:len(Idx),1,0,0] & (Y[Idx]==0) # cross loss
+#            Yi = np.float32(Yi)                                       # cross loss
+            
             for ii, jj in enumerate(Idx):                
-#                temp = symc.imresize(X[jj,:,:,:],[28,28])
+#                temp = symc.imresize(X[jj,:,:,:],[28,28])       # 3-chanels
                 temp = symc.imresize(X[jj,0,:,:],[28,28])
                 temp = np.float32(temp)
                 Xi[ii,0,:,:] = temp
-#                Xi[ii,:,:,:] = temp.transpose(2,0,1)
-                
-                if len(Idx)<batchDim[0]:
-                    Yi = np.zeros((batchDim[0],), dtype=np.float32)
-                    Yi[ii] = Y[jj]
-#                     Xi = np.zeros((len(Idx),batchDim[1],batchDim[2],batchDim[3]),dtype=np.float32)              
-            if len(Idx)<batchDim[0]:
+#                Xi[ii,:,:,:] = temp.transpose(2,0,1)            # 3-chanals                    
+            if len(Idx) < batchDim[0]:
+                tYi = np.zeros((batchDim[0],), dtype=np.float32) # softmax loss
+                tYi[0:len(Idx)] = Yi                             # softmax loss
                 for i in range(len(Idx),batchDim[0]):
-                    Yi[i] = Yi[i%len(Idx)]
+                    tYi[i] = Yi[i%len(Idx)]                      # softmax loss
+#                    Yi[i,:,0,0] = Yi[i%len(Idx),:,0,0]            # cross loss
                     Xi[i,:,:,:] = Xi[i%len(Idx),:,:,:]
-                    Xi = Xi -xmean
+                Yi = np.float32(tYi)                             # softmax loss
+#                Yi = np.float32(Yi)                              # cross loss
+                 
+            
                 
 # label-preserving data transformation (synthetic data generation)
 #            Xi = _xform_minibatch(Xi)
@@ -194,6 +203,7 @@ def testCNN(x, solverDir,cellId):
     text_format.Merge(open(netFn).read(),netParam)
     
     modelDir = str(cellId)+'_final.caffemodel'
+
     print( modelDir )
     net = caffe.Net(netFn,modelDir, caffe.TEST)
     for name, blobs in net.params.iteritems():
@@ -213,7 +223,7 @@ def testCNN(x, solverDir,cellId):
             caffe.set_device(gpuId)
         else:
             caffe.set_mode_cpu()
-            caffe.set_phase_train()
+#            caffe.set_phase_train()
     except AttributeError:
         if not isModeCPU:
             net.set_mode_gpu()
@@ -227,10 +237,10 @@ def testCNN(x, solverDir,cellId):
     batchDim = utils.infer_data_dimensions(netFn)
     print("[test:] batch shape:%s" %(batchDim))    
     
-    
     Xi = np.zeros((batchDim[0],1,28,28),dtype=np.float32)
     Yi = np.zeros((batchDim[0],),dtype=np.float32)
-    
+    xmean = np.mean(x)            
+    x = x - xmean
     maxValue = -1
     
     for idx in utils.testDataGenerator(x,batchDim[0]):         
@@ -241,15 +251,15 @@ def testCNN(x, solverDir,cellId):
         
         if np.max(idx)<(batchDim[0]-1):
             Xi[idx::,:,:,:] = x[idx::,:,:,:]   # work ? or not
-
+        
         net.set_input_arrays(Xi,Yi)
-        out = net.forward()        
-        Yi = out['prob']
-        Yi = np.squeeze(Yi)
-        ymax = np.max(Yi[:,0])  # 0 ???????????????? is positive???
-        yidx = np.argmax(Yi[:,0])
+        rv = net.forward()        
+        out = rv['prob']
+        out = np.squeeze(out)
+        ymax = np.max(out[:,0])  # 0 ???????????????? is positive???
+        yidx = np.argmax(out[:,0])
         if ymax>maxValue:
-            ymax = maxValue
+            maxValue = ymax
             yidx = yidx
         # yidx in appended data
         if yidx > batchDim[0]-1:
@@ -259,4 +269,4 @@ def testCNN(x, solverDir,cellId):
         os.chdir(curDir)
     
     
-    return yidx,
+    return yidx,maxValue

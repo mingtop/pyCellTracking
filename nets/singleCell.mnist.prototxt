@@ -1,0 +1,163 @@
+# Note: in our original (Theano) model, we used tanh instead of RELU and
+#       also we didn't have normalization layers at the output of each
+#       convolutional layer...
+
+
+name: "CiresanN3"
+
+#input: "data"
+#input_dim: 10
+#input_dim: 1
+#input_dim: 28
+#input_dim: 28
+
+layers {
+  type: MEMORY_DATA
+  name: "data"
+  top: "data"
+  top: "label"
+  memory_data_param {
+    batch_size:  10
+    channels:    1
+    height:      28
+    width:       28
+  }
+}
+
+layers {
+  name: "scale"
+  type: POWER
+  bottom: "data"
+  top: "scale"
+  power_param {
+    scale: 0.0125
+  }
+}
+
+layers {
+  name: "conv1"
+  type: CONVOLUTION
+  bottom: "scale"
+  top: "conv1"
+  blobs_lr: 1.0
+  blobs_lr: 2.0  
+  convolution_param {
+    num_output: 20
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layers {
+  name: "pool1"
+  type: POOLING
+  bottom: "conv1"
+  top: "pool1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layers {
+  name: "conv2"
+  type: CONVOLUTION
+  bottom: "pool1"
+  top: "conv2"
+  blobs_lr: 1.0
+  blobs_lr: 2.0
+  convolution_param {
+    num_output: 50
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layers {
+  name: "pool2"
+  type: POOLING
+  bottom: "conv2"
+  top: "pool2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layers {
+  name: "ip1"
+  type: INNER_PRODUCT
+  bottom: "pool2"
+  top: "ip1"
+  blobs_lr: 1.0
+  blobs_lr: 2.0
+  inner_product_param {
+    num_output: 500
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layers {
+  name: "relu1"
+  type: RELU
+  bottom: "ip1"
+  top: "ip1"
+}
+
+layers {
+  name: "ip2"
+  type: INNER_PRODUCT
+  bottom: "ip1"
+  top: "ip2"
+  blobs_lr: 1.0
+  blobs_lr: 2.0
+  inner_product_param {
+    num_output: 2
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+
+
+layers {
+  name: "accuracy"
+  type: ACCURACY
+  bottom: "ip2"
+  bottom: "label"
+  top: "accuracy"
+#  include: { phase: TEST }
+}
+
+layers {
+  type: SOFTMAX_LOSS
+  name: "loss"
+  top: "loss"
+  bottom: "ip2"
+  bottom: "label"
+}
+
+
+layers {
+  type: SOFTMAX
+  name: "prob"
+  top: "prob"
+  bottom: "ip2"
+}

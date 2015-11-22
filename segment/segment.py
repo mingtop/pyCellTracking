@@ -44,7 +44,7 @@ def cvCellNuclei(im):
            #    cv2.drawContours(gray, cellStatus, -1, (0,255,255), 3)
            
 # auto augment the cell size
-    plusPixelSize = 4
+    plusPixelSize = 1
     status = []    
     for i in range(len(cellStatus)):
         x,y,w,h = cv2.boundingRect(cellStatus[i])

@@ -24,31 +24,39 @@ layers {
   }
 }
 
+layers {
+  name: "scale"
+  type: POWER
+  bottom: "data"
+  top: "scale"
+  power_param {
+    scale: 0.0125
+  }
+}
 
 layers {
   name: "conv1"
   type: CONVOLUTION
-  bottom: "data"
+  bottom: "scale"
   top: "conv1"
   blobs_lr: 1
   blobs_lr: 2
   weight_decay: 1
   weight_decay: 1
   convolution_param {
-    num_output: 5
+    num_output: 100
     pad: 0
     kernel_size: 5
     stride: 1
     weight_filler {
       type: "gaussian"
-      std: 0.01
+      std: 0.0001
     }
     bias_filler {
       type: "constant"
     }
   }
 }
-
 layers {
   name: "pool1"
   type: POOLING
@@ -71,13 +79,13 @@ layers {
   weight_decay: 1
   weight_decay: 1
   convolution_param {
-    num_output: 10
+    num_output: 200
     pad: 0
-    kernel_size: 5    
+    kernel_size: 5     
     stride: 1
     weight_filler {
       type: "gaussian"
-      std: 0.001
+      std: 0.01
     }
     bias_filler {
       type: "constant"
@@ -97,7 +105,6 @@ layers {
   }
 }
 
-
 layers {
   name: "conv3"
   type: CONVOLUTION
@@ -108,7 +115,7 @@ layers {
   weight_decay: 1
   weight_decay: 1
   convolution_param {
-    num_output: 20
+    num_output: 350
     pad: 0
     kernel_size: 4
     stride: 1
@@ -122,18 +129,12 @@ layers {
   }
 }
 
-layers {
-  name: "relu3"
-  type: RELU
-  bottom: "conv3"
-  top: "relu3"
-}
 
 layers {
   name: "conv4"
   type: CONVOLUTION
-  bottom: "relu3"
-  top: "conv4"
+  bottom: "conv3"
+  top: "ip1"
   blobs_lr: 1
   blobs_lr: 2
   weight_decay: 1
@@ -154,34 +155,34 @@ layers {
 }
 
 layers {
-  name: "relu4"
-  type: RELU
-  bottom: "conv4"
-  top: "sp2"
+  name: "sigmoid1"
+  type: SIGMOID
+  bottom: "ip1"
+  top: "ip2"
 }
 
 layers {
   name: "accuracy"
   type: ACCURACY
-  bottom: "sp2"
+  bottom: "ip2"
   bottom: "label"
   top: "accuracy"
 #  include: { phase: TEST }
 }
 
 layers {
-  type: SOFTMAX_LOSS
+  type: SIGMOID_CROSS_ENTROPY_LOSS
   name: "loss"
   top: "loss"
-  bottom: "sp2"
+  bottom: "ip1"
   bottom: "label"
   #loss_weight: 1
 }
 
 
 layers {
-  type: SOFTMAX
+  type: SIGMOID
   name: "prob"
   top: "prob"
-  bottom: "sp2"
+  bottom: "ip1"
 }

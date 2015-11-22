@@ -1,27 +1,30 @@
 # NOTE: 
-
+#    I don't know why Power layer added work!
 #net: "singleCell.back.prototxt"  # old net
-net: "singleCell.prototxt"  # simple net
-#net: "singleCell.small.prototxt"  # simple net
+#net: "singleCell.conv.prototxt"  # full conv net, small params number can't converge
+net: "singleCell.mnist.prototxt"  # simple net
+#net: "singleCell.prototxt"  # Cross entroy layer net
+
+
 # The base learning rate, momentum and the weight decay of the network.
-base_lr: 0.01
+base_lr: 0.001
 momentum: 0                
-stepsize: 100
-gamma: 0.8
+stepsize: 1000
+gamma: 0
 #weight_decay: 0.004           # not supported yet
 
 # The learning rate policy
 lr_policy: "step"
 
 # Display every 200 iterations
-display: 10
+display: 100
 
 # The maximum number of iterations
-max_iter: 40
+max_iter: 1000
 
 # snapshot intermediate results
-snapshot: 4000
+snapshot: 2000
 snapshot_prefix: "net"
 
 # solver mode: CPU or GPU
-solver_mode: GPU   # CPU or GPU
+solver_mode: CPU   # CPU or GPU

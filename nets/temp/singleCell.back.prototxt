@@ -6,8 +6,8 @@
 name: "CiresanN3"
 
 #input: "data"
-#input_dim: 50
-#input_dim: 3
+#input_dim: 10
+#input_dim: 1
 #input_dim: 28
 #input_dim: 28
 
@@ -17,18 +17,27 @@ layers {
   top: "data"
   top: "label"
   memory_data_param {
-    batch_size:  50
-    channels:    3
+    batch_size:  10
+    channels:    1
     height:      28
     width:       28
   }
 }
 
+layers {
+  name: "scale"
+  type: POWER
+  bottom: "data"
+  top: "scale"
+  power_param {
+    scale: 0.0125
+  }
+}
 
 layers {
   name: "conv1"
   type: CONVOLUTION
-  bottom: "data"
+  bottom: "scale"
   top: "conv1"
   blobs_lr: 1
   blobs_lr: 2

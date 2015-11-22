@@ -16,7 +16,7 @@ import cnn
 def singleTracking(images,trkIdx,segResult,solverDir):    
     startIdx = trkIdx[0]
     endIdx   = trkIdx[1]
-    inrad    = 4
+    inrad    = 5
     outrad   = 0  
     trkThreshold = 0.75
         
@@ -32,15 +32,24 @@ def singleTracking(images,trkIdx,segResult,solverDir):
         pt = [px,py,pw,ph]
         im = images[:,:,:,startIdx]
         # enssemable data and labels
-        posCoor = util.sampleData(im,pt,inrad,outrad,100) 
+        posCoor = util.sampleData(im,pt,inrad,outrad,10000) 
         posData = util.getSampleData(im,posCoor)
         show.showSampleImage(im,posCoor,'pos')
-        negCoor = util.sampleData(im,pt,20, 10+inrad,100)        
+        negCoor = util.sampleData(im,pt,30, 4+inrad,100)        
         negData = util.getSampleData(im,negCoor)
         show.showSampleImage(im,negCoor,'neg')
         x = np.vstack((posData,negData))
+        
+        #Softmax Loss:
         y = np.zeros(int(posCoor.shape[0]+negCoor.shape[0]))
         y[0:int(posCoor.shape[0])] = 1
+        
+        #CossEntropy Loss                    # change in cnn.py file 
+#        y = np.zeros(int(posCoor.shape[0]+negCoor.shape[0],2))
+#        y[0:int(posCoor.shape[0]),:] = 1
+        
+        x = x/255.0
+        
 #        for i in range(0,20):
 #            ps = posData[i,:,:,:]
 #            ng = negData[i,:,:,:]
@@ -59,8 +68,10 @@ def singleTracking(images,trkIdx,segResult,solverDir):
             # sample predition position
             prdCoor = util.sampleData(im,pt,7,0,200)
             prdData = util.getSampleData(im,prdCoor)
-            show.showSampleImage(im,prdCoor,'prd')
-            
+            #show.showSampleImage(im,prdCoor,'prd')
+
+            prdData = prdData/255.0
+
             # do predication 
             preIdx,preVal = cnn.testCNN(prdData,solverDir,cellId)
             prePos = prdCoor[preIdx,:]
