@@ -5,3 +5,5 @@
 *.npy
 *.npz
 *.pyc
+*.caffemodel
+*.binaryproto

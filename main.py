@@ -24,7 +24,7 @@ cropImSz = [499,352]
 cropPt   = [3506,893]
 trkIdx   = [181,135]    #video [startIdx ,endIdx ] 
 #   15/16 85/86  134/135  181/182   total: 299
- 
+
 
 # 1. load data from certain Path
 print('step1: loading data')

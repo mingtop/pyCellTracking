@@ -17,7 +17,7 @@ def showSampleImage(im,coor,dataType):
         colr = (0,0,255)
     elif dataType.find("prd")>-1:
         colr = (255,0,0)
-    else:
+    else:        
         colr = (255,255,255)
 #    org = cv.CreateMatHeader(im.shape[0],im.shape[1],cv.CV_32FC3)
 #    cv.SetData(org,im,imshape[1]*   # aim to construct a cv::mat
@@ -44,8 +44,8 @@ def showSampleImage(im,coor,dataType):
 #        cv2.putText(im,dataType,(x+2,y+2),cv2.FONT_HERSHEY_PLAIN,1,colr,2)
 #    else :
 #        cv2.putText(im,dataType,(y-40,15),cv2.FONT_HERSHEY_PLAIN,1,colr,2)
-    cv2.putText(im,dataType,(y-40,15),cv2.FONT_HERSHEY_PLAIN,1,colr,2)
-    cv2.imshow(dataType,im)
+    cv2.putText(im,dataType,(y-100,15),cv2.FONT_HERSHEY_PLAIN,1,colr,2)
+    cv2.imshow('test',im)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     for i in range(1,10):

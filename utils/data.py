@@ -178,4 +178,30 @@ def testDataGenerator(x,batchSize):
         yield range(ii,(ii+nRet))
     
     
-    
+def detectionSample(images,seqCoor):
+    assert(images.shape[3]==len(seqCoor))        
+    x = []
+    y = []
+    for i in range(0,len(seqCoor)):
+        im = images[:,:,:,i]
+        inrad = 5
+        outrad = 0
+        pt = seqCoor[i]
+        posCoor = sampleData(im,pt,inrad,outrad,100000) 
+        posData = getSampleData(im,posCoor)
+        negCoor = sampleData(im,pt,30, 4+inrad,100)        
+        negData = getSampleData(im,negCoor)
+        x.append(posData)
+        x.append(negData)
+        ty = np.zeros(int(posCoor.shape[0]+negCoor.shape[0]))
+        ty[0:int(posCoor.shape[0])] = 1
+        y.append(ty)
+        
+    x = np.vstack((x))
+    for i in range(0,len(y)-1):
+        y1 = y.pop()
+        y2 = y.pop()
+        y1 = np.append(y1,y2)
+        y.append(y1)
+        
+    return x,y[0]

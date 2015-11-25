@@ -9,7 +9,6 @@ Created on Sat Nov 14 14:27:08 2015
 import numpy as np
 import utils.data as util
 import utils.show as show
-#from /home/jamin/Documents/Sypder/cellTracking/trackor import cnn
 import utils.cnn as cnn
 #import cnn
 
@@ -19,6 +18,7 @@ def singleTracking(images,trkIdx,segResult,solverDir):
     endIdx   = trkIdx[1]
     inrad    = 5
     outrad   = 0  
+    hisFrmNum = 1
     trkThreshold = 0.75
     
     netType = 0             #  0: softmax  1 : crossentropy loss
@@ -52,43 +52,67 @@ def singleTracking(images,trkIdx,segResult,solverDir):
             y[0:int(posCoor.shape[0]),0,0,0] = 1
             y[int(posCoor.shape[0]):int(posCoor.shape[0]+negCoor.shape[0]),1,0,0] = 1
 
-#        x = x/255.0     # because SCI.resize makes [0,1]---> [0,255]
           
         print("Y dim :%d" % (y.ndim) )
-        # train a classifer saved to net/final.caffemodel 
-        xmean = cnn.trainCNN(x,y,solverDir,cellId)       
-        
+        # saved to net/CELLID_final.caffemodel 
+        cnn.trainCNN(x,y,solverDir,cellId)  
+
 #        seqIdx.remove(startIdx)     # remove the first frm
-       
-        # from 2 to end frame trakcing
+#        seqCoor = np.zeros([hisFrmNum,4],dtype=np.int8)        
+#        seqCoor[0,:] = np.reshape(np.array(pt),[-1,4])
+        seqCoor = []  # story history coor for upadte sampeldata
+        seqCoor.append(pt)
+
+# from 2 to end frame trakcing
         for idx in seqIdx:
-            im = images[:,:,:,idx];
-            # sample predition 
-            prdCoor = util.sampleData(im,pt,7,0,200)
+            im = images[:,:,:,idx]            
+            prdCoor = util.sampleData(im,pt,5,0,1000)
             prdData = util.getSampleData(im,prdCoor)
-            show.showSampleImage(im,prdCoor,'prd')
-
-#            prdData = prdData/255.0
-
+#            show.showSampleImage(im,prdCoor,'prd')
+            
+            
             # do predication 
-            preIdx,preVal = cnn.testCNN(prdData,solverDir,cellId,xmean)
+            preIdx,preVal = cnn.testCNN(prdData,solverDir,cellId,np.mean(x))
             prePos = prdCoor[preIdx,:]
+            prePos = prePos.astype(int)
             # update 
-#           while max(preVal) < trkThreshold:
-#                # rember old-pt
-#                # sample neg pos
-#                # train 
-#                # prePt,preVal = cnn.test(preData)
-           
+            if preVal < trkThreshold:                                
+                # sample neg pos
+                x,y = util.detectionSample(images[:,:,:,idx-len(seqCoor):idx],seqCoor)
+                cnn.updateTrain(x,y,solverDir,cellId)
+#               # prePt,preVal = cnn.test(preData)                                            
+            
+            
+            if len(seqCoor) < hisFrmNum:
+                seqCoor.append(prePos.tolist())
+            else:
+                seqCoor.pop(0)
+                seqCoor.append(prePos.tolist())
+            
             show.showSampleImage(im,prePos,preVal)
            # rember prePt, preVal
-            
-            
+            pt = prePos
+            pt = pt.tolist()
         print('CellID: %d tracking done!' % (cellId))
         
 
     return -1  # tracking results ....
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # mutli cell tracking
 def multiTracking(images,trkIdx,segResult):

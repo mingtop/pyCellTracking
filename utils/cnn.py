@@ -7,7 +7,7 @@ Created on Mon Nov 16 22:44:28 2015
 import os,sys,time
 import utils.data as utils
 import numpy as np
-import scipy.misc as symc
+#import scipy.misc as symc
 import cv2
 
 import caffe
@@ -53,8 +53,7 @@ def trainCNN(x,y,solverDir,cellIdx):
         gpuId = 0
     else:
         isModeCPU = (solverParam.solver_mode == solverParam.SolverMode.Value('CPU'))
-        gpuId = 0
-    # different edition has different caffe API
+# different edition has different caffe API
     try:
         if not isModeCPU:
             caffe.set_mode_gpu()            
@@ -67,26 +66,23 @@ def trainCNN(x,y,solverDir,cellIdx):
         if not isModeCPU:
             solver.net.set_mode_gpu()
 #            solver.net.set_phase_train()
-#            caffe.set_device(gpuId)
-#            solver.net.set_device(gpuId)        
+#            caffe.set_device(gpuId)        
         else:
             solver.net.set_mode_cpu()
             solver.net.set_phase_train()
     
-    losses, acc,xmean = train_loop(solver, x, y,  solverParam, batchDim, outDir)
-    
+    losses, acc = train_loop(solver, x, y,  solverParam, batchDim, outDir)    
     solver.net.save('%d_final.caffemodel'%(cellIdx))
 #    np.save(os.path.join(outDir, '%s_losses' % outDir), losses)
-#    np.save(os.path.join(outDir, '%s_acc' % outDir), acc)
-    
-    print('[train]: ID %d done pretrain!' %(cellIdx))
+#    np.save(os.path.join(outDir, '%s_acc' % outDir), acc)    
+    print('[train]: ID %d done pretrain!' %(cellIdx))    
     
     # change to projDir
     if len(projDir) >0 :
         os.chdir(projDir)
     
     
-    return xmean
+    return 
     
 def train_loop(solver, X, Y, solverParam, batchDim, outDir):
     assert(batchDim[2] == batchDim[3])
@@ -206,7 +202,7 @@ def train_loop(solver, X, Y, solverParam, batchDim, outDir):
                 break  # in case we hit max_iter on a non-epoch boundary
 
             
-    return losses, acc,xmean
+    return losses, acc
     
     
 def testCNN(x, solverDir,cellId,xmean):
@@ -260,8 +256,7 @@ def testCNN(x, solverDir,cellId,xmean):
     print("[test:] batch shape:%s" %(batchDim))    
     
     Xi = np.zeros((batchDim[0],1,28,28),dtype=np.float32)
-    Yi = np.zeros((batchDim[0],),dtype=np.float32)
-#    xmean = np.mean(x)                
+    Yi = np.zeros((batchDim[0],),dtype=np.float32)            
 #    x = x/255.0
     maxValue = -1
     
@@ -284,7 +279,7 @@ def testCNN(x, solverDir,cellId,xmean):
         rv = net.forward()        
         out = rv['prob']
         out = np.squeeze(out)
-        ymax = np.max(out[:,1])  # 0 ???????????????? is positive???
+        ymax = np.max(out[:,1])  
         yidx = np.argmax(out[:,1])
         if ymax>maxValue:
             maxValue = ymax
@@ -300,7 +295,88 @@ def testCNN(x, solverDir,cellId,xmean):
     return yidx,maxValue
 
 
+def  updateTrain(x,y,solverDir,cellIdx):
+ # finetune
+    projDir = os.getcwd()
+    netDir, solverFn = os.path.split(solverDir)
+    # change to prototext Dirs    
+    if len(netDir)>0:
+        os.chdir(netDir)
+    
+    solverParam = caffe_pb2.SolverParameter()
+    text_format.Merge(open(solverFn).read(),solverParam)
+   
+    netFn = str(solverParam.net)
+    netParam = caffe_pb2.NetParameter()
+    text_format.Merge(open(netFn).read(),netParam)
+    
+    modelDir = str(cellIdx)+'_final.caffemodel'
+    
+    solverParam.max_iter = 10
+    print( modelDir )
+    solver = caffe.SGDSolver(solverDir)
+    solver.net.copy_from(modelDir)
 
+    batchDim = utils.infer_data_dimensions(netFn)
+    print('[train]: batch shape: %s' %str(batchDim))
+    
+    preDir = str(solverParam.snapshot_prefix)   # unicode ---> str
+    outDir = os.path.join(projDir,preDir)
+    if os.path.isdir(outDir):
+        os.mkdir(outDir)
+        
+    print('[train]: training data shape: %s'  %(str(x.shape)) )
+    
+    # Create the caffe solover
+#    solver = caffe.SGDSolver(solverFn)
+    for name, blobs in solver.net.params.iteritems():
+        for bIdx, b in enumerate(blobs):
+            print("%s[%d] : %s" %( name,bIdx,b.data.shape))
+    
+    GPU = solverParam.solver_mode  # cpu 0 , gpu 1
+    
+    if GPU :
+        isModeCPU = 0
+        gpuId = 0
+    else:
+        isModeCPU = (solverParam.solver_mode == solverParam.SolverMode.Value('CPU'))
+# different edition has different caffe API
+    try:
+        if not isModeCPU:
+            caffe.set_mode_gpu()            
+            caffe.set_device(gpuId)
+#            solver.net.set_phase_train()
+        else:
+            caffe.set_mode_cpu()            
+#            solver.net.set_phase_train()          # Needn't set phase as Train
+    except AttributeError:
+        if not isModeCPU:
+            solver.net.set_mode_gpu()
+#            solver.net.set_phase_train()
+#            caffe.set_device(gpuId)        
+        else:
+            solver.net.set_mode_cpu()
+            solver.net.set_phase_train()
+    
+    losses, acc = train_loop(solver, x, y,  solverParam, batchDim, outDir)    
+    solver.net.save('%d_final.caffemodel'%(cellIdx))  
+    print('[train]: ID %d done pretrain!' %(cellIdx))    
+    
+    # change to projDir
+    if len(projDir) >0 :
+        os.chdir(projDir)
+
+#    niter = 10    
+#    train_loss = np.zeros(niter)
+#    for it in range(niter):
+#        solver.step(1)  # SGD by Caffe        
+#    # store the train loss
+#        train_loss[it] = solver.net.blobs['loss'].data       
+#        if it % 10 == 0:
+#            print 'iter %d, finetune_loss=%f' % (it, train_loss[it])
+#    print 'done'
+    
+    return
 
 
 
