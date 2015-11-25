@@ -131,7 +131,7 @@ def npy2tif(images,dst,trkIdx):
     for i in range(endIdx,(startIdx+1)):
         im = images[:,:,:,i]
         im = Image.fromarray(im)
-        fname = os.path.join(dst, '%d.tif' %(i) );
+        fname = os.path.join(dst, '%d.png' %(i) );
         im.save(fname)
         print('saved %s' %(fname) ) 
     return

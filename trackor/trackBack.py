@@ -9,8 +9,9 @@ Created on Sat Nov 14 14:27:08 2015
 import numpy as np
 import utils.data as util
 import utils.show as show
-import cv2
-import cnn
+#from /home/jamin/Documents/Sypder/cellTracking/trackor import cnn
+import utils.cnn as cnn
+#import cnn
 
 # single cell tracking 
 def singleTracking(images,trkIdx,segResult,solverDir):    
@@ -19,6 +20,9 @@ def singleTracking(images,trkIdx,segResult,solverDir):
     inrad    = 5
     outrad   = 0  
     trkThreshold = 0.75
+    
+    netType = 0             #  0: softmax  1 : crossentropy loss
+    
         
     seqIdx   = range(endIdx,startIdx+1);
     seqIdx.reverse();
@@ -32,7 +36,7 @@ def singleTracking(images,trkIdx,segResult,solverDir):
         pt = [px,py,pw,ph]
         im = images[:,:,:,startIdx]
         # enssemable data and labels
-        posCoor = util.sampleData(im,pt,inrad,outrad,10000) 
+        posCoor = util.sampleData(im,pt,inrad,outrad,100000) 
         posData = util.getSampleData(im,posCoor)
         show.showSampleImage(im,posCoor,'pos')
         negCoor = util.sampleData(im,pt,30, 4+inrad,100)        
@@ -40,40 +44,34 @@ def singleTracking(images,trkIdx,segResult,solverDir):
         show.showSampleImage(im,negCoor,'neg')
         x = np.vstack((posData,negData))
         
-        #Softmax Loss:
-        y = np.zeros(int(posCoor.shape[0]+negCoor.shape[0]))
-        y[0:int(posCoor.shape[0])] = 1
-        
-        #CossEntropy Loss                    # change in cnn.py file 
-#        y = np.zeros(int(posCoor.shape[0]+negCoor.shape[0],2))
-#        y[0:int(posCoor.shape[0]),:] = 1
-        
-        x = x/255.0
-        
-#        for i in range(0,20):
-#            ps = posData[i,:,:,:]
-#            ng = negData[i,:,:,:]
-#            cv2.imshow('test',posData[i,:,:,:].transpose(1,2,0))
-#            cv2.waitKey(0)
-                
-        
+        if netType == 0: # Softmax Loss:
+            y = np.zeros(int(posCoor.shape[0]+negCoor.shape[0]))
+            y[0:int(posCoor.shape[0])] = 1
+        elif netType == 1:  # CossEntropy Loss
+            y = np.zeros((int(posCoor.shape[0]+negCoor.shape[0]),2,1,1),dtype=np.float32)
+            y[0:int(posCoor.shape[0]),0,0,0] = 1
+            y[int(posCoor.shape[0]):int(posCoor.shape[0]+negCoor.shape[0]),1,0,0] = 1
+
+#        x = x/255.0     # because SCI.resize makes [0,1]---> [0,255]
+          
+        print("Y dim :%d" % (y.ndim) )
         # train a classifer saved to net/final.caffemodel 
-        cnn.trainCNN(x,y,solverDir,cellId)       
+        xmean = cnn.trainCNN(x,y,solverDir,cellId)       
         
-        seqIdx.remove(startIdx)     # remove the first frm
+#        seqIdx.remove(startIdx)     # remove the first frm
        
         # from 2 to end frame trakcing
         for idx in seqIdx:
             im = images[:,:,:,idx];
-            # sample predition position
+            # sample predition 
             prdCoor = util.sampleData(im,pt,7,0,200)
             prdData = util.getSampleData(im,prdCoor)
-            #show.showSampleImage(im,prdCoor,'prd')
+            show.showSampleImage(im,prdCoor,'prd')
 
-            prdData = prdData/255.0
+#            prdData = prdData/255.0
 
             # do predication 
-            preIdx,preVal = cnn.testCNN(prdData,solverDir,cellId)
+            preIdx,preVal = cnn.testCNN(prdData,solverDir,cellId,xmean)
             prePos = prdCoor[preIdx,:]
             # update 
 #           while max(preVal) < trkThreshold:
@@ -81,11 +79,10 @@ def singleTracking(images,trkIdx,segResult,solverDir):
 #                # sample neg pos
 #                # train 
 #                # prePt,preVal = cnn.test(preData)
-
-           # show every frame
+           
             show.showSampleImage(im,prePos,preVal)
            # rember prePt, preVal
-            #
+            
             
         print('CellID: %d tracking done!' % (cellId))
         

@@ -1,0 +1,176 @@
+#  train_epoch: 400  lr = 0.01   momentum: 0.0 gamma: 0.9 stepsize: 200
+#  sub mean  
+#
+#  not support batchNorm
+
+
+name: "Softmax"
+
+#input: "data"
+#input_dim: 10
+#input_dim: 1
+#input_dim: 28
+#input_dim: 28
+
+layers {
+  type: MEMORY_DATA
+  name: "data"
+  top: "data"
+  top: "label"  
+  memory_data_param {
+    batch_size:  10
+    channels:    1
+    height:      28
+    width:       28
+  }
+}
+
+
+layers {
+  name: "scale"
+  type: POWER
+  bottom: "data"
+  top: "scale"
+  power_param {
+    scale: 0.0125
+  }
+}
+
+layers {
+  name: "conv1"
+  type: CONVOLUTION
+  bottom: "scale"
+  top: "conv1"
+  blobs_lr: 1
+  blobs_lr: 2
+  weight_decay: 1
+  weight_decay: 1
+  convolution_param {
+    num_output: 20
+    pad: 0
+    kernel_size: 2
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      std: 0.0001
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+#  batch_norm_param {
+#    use_global_stats = 0
+#  }
+}
+layers {
+  name: "pool1"
+  type: POOLING
+  bottom: "conv1"
+  top: "pool1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+} 
+layers {
+  name: "norm1"
+  type: LRN
+  bottom: "pool1"
+  top: "norm1"
+  lrn_param {
+    norm_region: WITHIN_CHANNEL
+    local_size: 3
+    alpha: 5e-05
+    beta: 0.75
+  }
+}
+
+layers {
+  name: "conv2"
+  type: CONVOLUTION
+  bottom: "norm1"
+  top: "conv2"
+  blobs_lr: 1
+  blobs_lr: 2
+  weight_decay: 1
+  weight_decay: 1
+  convolution_param {
+    num_output: 10
+    pad: 0
+    kernel_size: 3     
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layers {
+  name: "norm2"
+  type: LRN
+  bottom: "conv2"
+  top: "norm2"
+  lrn_param {
+    norm_region: WITHIN_CHANNEL
+    local_size: 3
+    alpha: 5e-05
+    beta: 0.75
+  }
+}
+
+layers {
+  name: "ip1"
+  type: INNER_PRODUCT
+  bottom: "norm2"
+  top: "ip1"
+  blobs_lr: 1.0
+  blobs_lr: 2.0
+  inner_product_param {
+    num_output: 2
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layers {
+  name: "ip2"
+  type: SIGMOID
+  bottom: "ip1"
+  top: "ip2"
+}
+
+layers {
+  name: "accuracy"
+  type: ACCURACY
+  bottom: "ip2"
+  bottom: "label"
+  top: "accuracy"
+#  include: { phase: TEST }
+}
+
+layers {
+  type: SOFTMAX_LOSS
+  name: "loss"
+  top: "loss"
+  bottom: "ip2"
+  bottom: "label"
+  #loss_weight: 1
+#  exclude:{
+#    phase: TEST
+#  }
+}
+
+
+layers {
+  type: SOFTMAX
+  name: "prob"
+  top: "prob"
+  bottom: "ip2"
+}

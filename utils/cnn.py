@@ -4,15 +4,15 @@ Created on Mon Nov 16 22:44:28 2015
 
 @author: jamin
 """
-import caffe
-from caffe.proto import caffe_pb2
-from google.protobuf import text_format
-
 import os,sys,time
 import utils.data as utils
 import numpy as np
 import scipy.misc as symc
+import cv2
 
+import caffe
+from caffe.proto import caffe_pb2
+from google.protobuf import text_format
 
 
 
@@ -57,21 +57,23 @@ def trainCNN(x,y,solverDir,cellIdx):
     # different edition has different caffe API
     try:
         if not isModeCPU:
-            caffe.set_mode_gpu()
+            caffe.set_mode_gpu()            
             caffe.set_device(gpuId)
+#            solver.net.set_phase_train()
         else:
-            caffe.set_mode_cpu()
-#            caffe.set_phase_train()        # Needn't set phase as Train
+            caffe.set_mode_cpu()            
+#            solver.net.set_phase_train()          # Needn't set phase as Train
     except AttributeError:
         if not isModeCPU:
-            caffe.set_mode_gpu()
+            solver.net.set_mode_gpu()
+#            solver.net.set_phase_train()
 #            caffe.set_device(gpuId)
-            solver.net.set_device(gpuId)        
+#            solver.net.set_device(gpuId)        
         else:
             solver.net.set_mode_cpu()
             solver.net.set_phase_train()
     
-    losses, acc = train_loop(solver, x, y,  solverParam, batchDim, outDir)
+    losses, acc,xmean = train_loop(solver, x, y,  solverParam, batchDim, outDir)
     
     solver.net.save('%d_final.caffemodel'%(cellIdx))
 #    np.save(os.path.join(outDir, '%s_losses' % outDir), losses)
@@ -84,7 +86,7 @@ def trainCNN(x,y,solverDir,cellIdx):
         os.chdir(projDir)
     
     
-    return losses, acc
+    return xmean
     
 def train_loop(solver, X, Y, solverParam, batchDim, outDir):
     assert(batchDim[2] == batchDim[3])
@@ -120,17 +122,22 @@ def train_loop(solver, X, Y, solverParam, batchDim, outDir):
                 Yi = Y[Idx]                   
                 Yi = np.float32(Yi)
             else:                                                # cross loss
-                Yi[0:len(Idx),:,:,:] = Yi[0:len(Idx),:,:,:]                
+                Yi[0:len(Idx),:,:,:] = Y[0:len(Idx),:,:,:]                
                 Yi = np.float32(Yi)                                       # cross loss
             
             for ii, jj in enumerate(Idx):
 #                temp = symc.imresize(X[jj,:,:,:],[28,28])       # 3-chanels
-                temp = symc.imresize(X[jj,0,:,:],[28,28])
+#                temp = X[jj,0,:,:]
+#                temp = symc.imresize(temp,[28,28])
+                temp = X[jj,0,:,:]
+                temp = np.ascontiguousarray(temp)
+                temp = cv2.resize(temp,(28,28))
                 temp = np.float32(temp)
                 Xi[ii,0,:,:] = temp
 #                Xi[ii,:,:,:] = temp.transpose(2,0,1)            # 3-chanals                    
             # argument data to batchSize
             if len(Idx) < batchDim[0]:
+                continue
                 if Y.ndim == 1:                                 # softmax loss
                     tYi = np.zeros((batchDim[0],), dtype=np.float32) 
                     tYi[0:len(Idx)] = Yi                       
@@ -145,7 +152,7 @@ def train_loop(solver, X, Y, solverParam, batchDim, outDir):
                 else :
                     Yi = np.float32(Yi)                      
             Xi = Xi - xmean
-            
+#            Xi = Xi/255.0
 # label-preserving data transformation (synthetic data generation)
 #            Xi = _xform_minibatch(Xi)
             
@@ -153,7 +160,7 @@ def train_loop(solver, X, Y, solverParam, batchDim, outDir):
             if Y.ndim == 1:
                 solver.net.set_input_arrays(Xi, Yi)            
             else:
-                solver.net.set_input_arrays(Xi, np.squeeze(Yi[:,0,:,:]))            
+                solver.net.set_input_arrays(Xi, np.squeeze(Yi[:,:,:,:]))            
 #            solver.net.set_input_arrays(Xi, np.squeeze(Yi[:,:,0,0]))
 #            solver.net.set_input_arrays(Yi, np.squeeze(Yi[:,0,:,:]))                                 
 
@@ -172,7 +179,10 @@ def train_loop(solver, X, Y, solverParam, batchDim, outDir):
                     
             # update running list of losses with the loss from this mini batch
             losses[currIter] = np.squeeze(rv['loss'])
-            acc[currIter] = np.squeeze(rv['accuracy'])
+            if Y.ndim==1:
+                acc[currIter] = np.squeeze(rv['accuracy'])
+            else :
+                acc[currIter] = 0
             currIter += 1
 
             #----------------------------------------
@@ -196,10 +206,10 @@ def train_loop(solver, X, Y, solverParam, batchDim, outDir):
                 break  # in case we hit max_iter on a non-epoch boundary
 
             
-    return
+    return losses, acc,xmean
     
     
-def testCNN(x, solverDir,cellId):
+def testCNN(x, solverDir,cellId,xmean):
         
     curDir = os.getcwd()
     netDir, solverFn = os.path.split(solverDir)
@@ -215,7 +225,7 @@ def testCNN(x, solverDir,cellId):
     text_format.Merge(open(netFn).read(),netParam)
     
     modelDir = str(cellId)+'_final.caffemodel'
-
+    
     print( modelDir )
     net = caffe.Net(netFn,modelDir, caffe.TEST)
     for name, blobs in net.params.iteritems():
@@ -251,25 +261,31 @@ def testCNN(x, solverDir,cellId):
     
     Xi = np.zeros((batchDim[0],1,28,28),dtype=np.float32)
     Yi = np.zeros((batchDim[0],),dtype=np.float32)
-    xmean = np.mean(x)            
-    x = x - xmean
+#    xmean = np.mean(x)                
+#    x = x/255.0
     maxValue = -1
     
     for idx in utils.testDataGenerator(x,batchDim[0]):         
         # resize 
-        for ii in range( 0, min(batchDim[0]-1, np.max(idx)+1) ):
-            temp = symc.imresize(Xi[ii,0,:,:],[28,28])
+        for ii in range( 0, min(batchDim[0], np.max(idx)+1) ):
+#            temp = symc.imresize(Xi[ii,0,:,:],[28,28])
+            temp = x[ii,0,:,:]
+            temp = np.ascontiguousarray(temp)
+            temp = cv2.resize(temp,(28,28))
+            temp = np.float32(temp)
             Xi[ii,0,:,:] = np.float32(temp)
         
+        # Only copy the last image
         if np.max(idx)<(batchDim[0]-1):
-            Xi[idx::,:,:,:] = x[idx::,:,:,:]   # work ? or not
+            Xi[idx::,:,:,:] = x[idx::,:,:,:]
         
+        Xi = Xi - xmean
         net.set_input_arrays(Xi,Yi)
         rv = net.forward()        
         out = rv['prob']
         out = np.squeeze(out)
-        ymax = np.max(out[:,0])  # 0 ???????????????? is positive???
-        yidx = np.argmax(out[:,0])
+        ymax = np.max(out[:,1])  # 0 ???????????????? is positive???
+        yidx = np.argmax(out[:,1])
         if ymax>maxValue:
             maxValue = ymax
             yidx = yidx
@@ -282,3 +298,9 @@ def testCNN(x, solverDir,cellId):
     
     
     return yidx,maxValue
+
+
+
+
+
+

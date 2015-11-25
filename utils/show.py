@@ -68,7 +68,11 @@ def showCNNWeights(w):
 def showLineage(trkRes):
 # Todo: same cell has same clr
     # GraphicZ   2-X trees
-
+    dis = 3
+        
+    
+    
+    
     
     
     

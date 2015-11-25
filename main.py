@@ -3,6 +3,7 @@
 Created on Sat Nov 14 14:27:08 2015    
 @author: jamin SCU
 """
+
 import sys
 import os
 import numpy as np
@@ -10,6 +11,7 @@ import utils.data as ld
 import trackor.trackBack as tr
 import segment.segment as seg
 import utils.show as show
+import pdb
 
 # params config
 curDir = os.getcwd()
@@ -27,11 +29,11 @@ trkIdx   = [181,135]    #video [startIdx ,endIdx ]
 # 1. load data from certain Path
 print('step1: loading data')
 if os.path.isfile('data/images.npy'):
-   images = np.load('data/images.npy')
+    images = np.load('data/images.npy')
 else:
     images = ld.loadImages(dataDir,cropImSz,cropPt)
     # save image to tif 
-    ld.npy2tif(images,'/media/jamin/Data/Cell/tracking/test',trkIdx)
+#ld.npy2tif(images,'/media/jamin/Data/Cell/tracking/test2',trkIdx)
 
 
 # 2. cell Detection

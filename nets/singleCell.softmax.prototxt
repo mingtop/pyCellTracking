@@ -1,12 +1,12 @@
-# Note: in our original (Theano) model, we used tanh instead of RELU and
-#       also we didn't have normalization layers at the output of each
-#       convolutional layer...
+#  train_epoch: 400  lr = 0.01   momentum: 0.0 gamma: 0.9 stepsize: 200
+#  
+#
 
 
-name: "CiresanN3"
+name: "Softmax"
 
 #input: "data"
-#input_dim: 10
+#input_dim: 64
 #input_dim: 1
 #input_dim: 28
 #input_dim: 28
@@ -15,14 +15,15 @@ layers {
   type: MEMORY_DATA
   name: "data"
   top: "data"
-  top: "label"
+  top: "label"  
   memory_data_param {
-    batch_size:  10
+    batch_size:  64
     channels:    1
     height:      28
     width:       28
   }
 }
+
 
 layers {
   name: "scale"
@@ -44,13 +45,12 @@ layers {
   weight_decay: 1
   weight_decay: 1
   convolution_param {
-    num_output: 100
+    num_output: 5
     pad: 0
     kernel_size: 5
     stride: 1
     weight_filler {
-      type: "gaussian"
-      std: 0.0001
+      type: "xavier"      
     }
     bias_filler {
       type: "constant"
@@ -79,13 +79,12 @@ layers {
   weight_decay: 1
   weight_decay: 1
   convolution_param {
-    num_output: 200
+    num_output: 10
     pad: 0
     kernel_size: 5     
     stride: 1
     weight_filler {
-      type: "gaussian"
-      std: 0.01
+      type: "xavier"      
     }
     bias_filler {
       type: "constant"
@@ -115,13 +114,12 @@ layers {
   weight_decay: 1
   weight_decay: 1
   convolution_param {
-    num_output: 350
+    num_output: 20
     pad: 0
     kernel_size: 4
     stride: 1
     weight_filler {
-      type: "gaussian"
-      std: 0.01
+      type: "xavier"      
     }
     bias_filler {
       type: "constant"
@@ -134,7 +132,7 @@ layers {
   name: "conv4"
   type: CONVOLUTION
   bottom: "conv3"
-  top: "ip1"
+  top: "conv4"
   blobs_lr: 1
   blobs_lr: 2
   weight_decay: 1
@@ -145,8 +143,7 @@ layers {
     kernel_size: 1
     stride: 1
     weight_filler {
-      type: "gaussian"
-      std: 0.01
+      type: "xavier"
     }
     bias_filler {
       type: "constant"
@@ -155,10 +152,17 @@ layers {
 }
 
 layers {
-  name: "sigmoid1"
-  type: SIGMOID
-  bottom: "ip1"
+  name: "ip2"
+  type: RELU
+  bottom: "conv4"
   top: "ip2"
+}
+
+layers {
+  type: SOFTMAX
+  name: "prob"
+  top: "prob"
+  bottom: "ip2"
 }
 
 layers {
@@ -167,22 +171,14 @@ layers {
   bottom: "ip2"
   bottom: "label"
   top: "accuracy"
-#  include: { phase: TEST }
+  exclude: { phase: TEST }
 }
-
 layers {
-  type: SIGMOID_CROSS_ENTROPY_LOSS
+  type: SOFTMAX_LOSS
   name: "loss"
   top: "loss"
-  bottom: "ip1"
+  bottom: "ip2"
   bottom: "label"
   #loss_weight: 1
-}
-
-
-layers {
-  type: SIGMOID
-  name: "prob"
-  top: "prob"
-  bottom: "ip1"
+  exclude: { phase: TEST }
 }
